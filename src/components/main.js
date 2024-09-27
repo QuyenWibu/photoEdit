@@ -150,6 +150,12 @@ export default function Main() {
             }
         }
 }
+const handleGr = () =>{
+    const Obj = canvas.getObjects()
+    const group = new fabric.Group(Obj)
+    canvas.add(group);
+    canvas.renderAll()
+}
     return (
         <div className="flex flex-row h-screen">
             <section className="flex flex-col select-none w-1/4 z-50 p-4 bg-gray-100 shadow-md">
@@ -220,6 +226,13 @@ export default function Main() {
                       >                   
 </input>
  
+                    </li>
+                    <li>
+                    <div>
+                    <button onClick={handleGr}>Groups</button>
+                    </div>
+                    <button onClick={handleGr}>UnGroups</button>
+                  
                     </li>
                 </ul>
             </section>
