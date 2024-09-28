@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useLocation } from "react-router-dom";
-import * as fabric from 'fabric';
+import { fabric } from 'fabric';
 import cut from '../icon/cut.svg';
 import shape from '../icon/shapes.png';
 import { FabricImage } from 'fabric';
@@ -24,6 +24,7 @@ export default function Main() {
 
 
     useEffect(() => {
+        
         if (canvasRef.current) {
             const fabricCanvas = new fabric.Canvas(canvasRef.current, {
                 width: 800,
@@ -58,7 +59,7 @@ export default function Main() {
                 canvas.renderAll();
 
             
-                applyFilters(img);
+                applyFilter(img);
             }, { crossOrigin: 'anonymous' });
         }
     }, [canvas, imageUrl]);
@@ -71,43 +72,50 @@ export default function Main() {
         if (!canvas) return;
 
         canvas.getObjects('image').forEach(obj => {
-            applyFilters(obj);
+            applyFilter(obj);
         });
 
         canvas.renderAll();
     };
-    const applyFilters = () => {
-        if (!activeObject) return;
 
-        activeObject.filters = [];
 
-        if (filters.brightness !== 0) {
-            activeObject.filters.push(new fabric.Image.filters.Brightness({ brightness: filters.brightness }));
-        }
-        if (filters.contrast !== 0) {
-            activeObject.filters.push(new fabric.Image.filters.Contrast({ contrast: filters.contrast }));
-        }
-        if (filters.saturation !== 0) {
-            activeObject.filters.push(new fabric.Image.filters.Saturation({ saturation: filters.saturation }));
-        }
-        if (filters.grayscale) {
-            activeObject.filters.push(new fabric.Image.filters.Grayscale());
-        }
-        if (filters.sepia) {
-            activeObject.filters.push(new fabric.Image.filters.Sepia());
-        }
-        if (filters.blur !== 0) {
-            activeObject.filters.push(new fabric.Image.filters.Blur({ blur: filters.blur }));
-        }
-        if (filters.sharpen !== 0) {
-            activeObject.filters.push(new fabric.Image.filters.Convolute({
-                matrix: [0, -1, 0, -1, 5, -1, 0, -1, 0].map(v => v * filters.sharpen)
-            }));
+
+    const applyFilter = (filterType, value) => {
+        if (!activeObject || activeObject.type !== 'image') return;
+
+        let filter;
+        switch (filterType) {
+            case 'brightness':
+                filter = new fabric.Image.filters.Brightness({ brightness: value });
+                break;
+            case 'contrast':
+                filter = new fabric.Image.filters.Contrast({ contrast: value });
+                break;
+            case 'saturation':
+                filter = new fabric.Image.filters.Saturation({ saturation: value });
+                break;
+            case 'blur':
+                filter = new fabric.Image.filters.Blur({ blur: value * 0.1 });
+                break;
+            default:
+                return;
         }
 
+      
+        activeObject.filters = activeObject.filters.filter(f => f.type !== filterType);
+      
+        if (value !== 0) {
+            activeObject.filters.push(filter);
+        }
+
+      
         activeObject.applyFilters();
         canvas.renderAll();
     };
+
+
+
+
     const handleFilterChange = (filterName, value) => {
         setFilters(prevFilters => ({ ...prevFilters, [filterName]: value }));
     };
@@ -122,6 +130,7 @@ export default function Main() {
                 fontSize: 20
             });
             canvas.add(text);
+            canvas.bringToFront(text);
             canvas.setActiveObject(text);
             canvas.renderAll();
         }
@@ -222,7 +231,7 @@ export default function Main() {
                 canvas.add(image);
                 canvas.centerObject(image);
                 canvas.setActiveObject(image);
-                applyFilters(image);
+                applyFilter(image);
                 canvas.renderAll();
             };
         };
