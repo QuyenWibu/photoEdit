@@ -217,9 +217,8 @@ export default function Main() {
             imageElement.src = imageUrl;
             imageElement.onload = function () {
                 let image = new fabric.Image(imageElement);
-                // Thay đổi kích thước hình ảnh
-                image.scaleToWidth(image.width * 0.25); // Giảm 50% chiều rộng
-                image.scaleToHeight(image.height * 0.25); // Giảm 50% chiều cao
+                image.scaleToWidth(image.width * 0.25); 
+                image.scaleToHeight(image.height * 0.25); 
                 canvas.add(image);
                 canvas.centerObject(image);
                 canvas.setActiveObject(image);
