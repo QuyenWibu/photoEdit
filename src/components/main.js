@@ -160,8 +160,37 @@ export default function Main() {
         canvas.add(circle);
     };
 
- 
-      
+    const addPolygon = () =>{
+        const threesome = new fabric.Polygon([
+            { x: 100, y: 100 },
+            { x: 150, y: 150 },
+            { x: 50, y: 150 }
+          ], {
+            fill: 'red',
+            stroke: 'black',
+            strokeWidth: 2
+          });
+          canvas.add(threesome);
+    }
+    const addStar = () => {
+        const foursome = new fabric.Polygon([
+            { x: 100, y: 10 },  // Đỉnh trên
+            { x: 120, y: 70 },  // Đỉnh bên phải
+            { x: 190, y: 70 },  // Đỉnh dưới bên phải
+            { x: 130, y: 110 }, // Đỉnh bên phải dưới
+            { x: 150, y: 180 }, // Đỉnh dưới
+            { x: 100, y: 140 }, // Đỉnh bên trái dưới
+            { x: 50, y: 180 },  // Đỉnh dưới bên trái
+            { x: 70, y: 110 },   // Đỉnh bên trái dưới
+            { x: 10, y: 70 },    // Đỉnh dưới bên trái
+            { x: 80, y: 70 }     // Đỉnh bên trái
+        ],{
+            fill: 'red',
+            stroke: 'black',
+            strokeWidth: 2
+        })
+        canvas.add(foursome);
+    }
     const toggleShapeOptions = () => {
         setShowShapeOptions(!showShapeOptions);
     };
@@ -183,20 +212,21 @@ export default function Main() {
         let reader = new FileReader();
         reader.readAsDataURL(imgObj);
         reader.onload = (e) => {
-            let imageUrl = e.target.result
-            let imageElement = document.createElement('img')
-            imageElement.src = imageUrl
-            imageElement.onload = function (){
-                    let image = new fabric.Image(imageElement);
-                    canvas.add(image);
-                    canvas.centerObject(image);
-                    canvas.setActiveObject(image);
-                    applyFilters(image);
-                    canvas.renderAll();
-            }
-           
-        }
-     
+            let imageUrl = e.target.result;
+            let imageElement = document.createElement('img');
+            imageElement.src = imageUrl;
+            imageElement.onload = function () {
+                let image = new fabric.Image(imageElement);
+                // Thay đổi kích thước hình ảnh
+                image.scaleToWidth(image.width * 0.25); // Giảm 50% chiều rộng
+                image.scaleToHeight(image.height * 0.25); // Giảm 50% chiều cao
+                canvas.add(image);
+                canvas.centerObject(image);
+                canvas.setActiveObject(image);
+                applyFilters(image);
+                canvas.renderAll();
+            };
+        };
     };
 const handleGr = () =>{
     const Obj = canvas.getObjects()
@@ -214,7 +244,58 @@ const handleUngroup = () => {
       canvas.renderAll();
     }
   };
+const addPen = () =>{
+    const pencilBrush = new fabric.PencilBrush(canvas);
+    pencilBrush.color = 'red';
+    pencilBrush.width = 5;
+    canvas.freeDrawingBrush = pencilBrush;
+    canvas.isDrawingMode = true; 
+}
+document.addEventListener('keydown', function(event) {
+    if (event.key === 'Escape') {
+        canvas.isDrawingMode = false;
+    }
+});
 
+const addEffecttext = () => {
+    const text = new fabric.IText('', {
+        left: 50,
+        top: 50,
+        fontSize: 20,
+        fontFamily: 'Arial',
+                fill: '#000000',
+    });
+    canvas.add(text);
+    
+    const fullText = "Chào mừng bạn đến với Fabric.js!";
+    let index = 0;
+
+    const type = () => {
+        if (index < fullText.length) {
+            text.text += fullText.charAt(index);
+            index++;
+            canvas.add(text);
+            canvas.setActiveObject(text);
+            canvas.renderAll();
+            setTimeout(type, 2000); // Thay đổi tốc độ gõ chữ tại đây
+        }
+    };
+
+    type(); // Gọi hàm type để bắt đầu hiệu ứng
+};
+const downloadPhoto = () =>{
+    if (!canvas) return;
+    const dataURL = canvas.toDataURL({
+        format: 'png',
+        quality: 1.0 
+    });
+ const link = document.createElement('a');
+    link.href = dataURL;
+    link.download = 'canvas-image.png';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
     return (
         <div className="flex flex-row h-screen">
             <section className="flex flex-col select-none w-1/4 z-50 p-4 bg-gray-100 shadow-md">
@@ -329,6 +410,14 @@ const handleUngroup = () => {
                                 >
                                     Line
                                 </button>
+                                <button className="block w-full text-left px-4 py-2 hover:bg=gray-100"
+                                 onClick={() =>{addPolygon(); setShowShapeOptions(false)}}>
+                                tam giac
+                                </button>
+                                <button className="block w-full text-left px-4 py-2 hover:bg=gray-100"
+                                 onClick={() =>{addStar(); setShowShapeOptions(false)}}>
+                                ngoi sao
+                                </button>
                             </div>
                         )}
                     </li>
@@ -349,7 +438,24 @@ const handleUngroup = () => {
                   
                     </li>
                     <li>
-                    
+                    <button onClick={addPen}>
+                    <svg class="w-6 h-6 text-gray-800 dark:text-black" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24">
+  <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.779 17.779 4.36 19.918 6.5 13.5m4.279 4.279 8.364-8.643a3.027 3.027 0 0 0-2.14-5.165 3.03 3.03 0 0 0-2.14.886L6.5 13.5m4.279 4.279L6.499 13.5m2.14 2.14 6.213-6.504M12.75 7.04 17 11.28"/>
+</svg>
+</button>
+                    </li>
+                    <li>
+                    <button onClick={addEffecttext}>
+                    text effect
+                    </button>
+                    </li>
+                    <li>
+                    <button onClick={downloadPhoto}>
+        <svg className="w-6 h-6 text-gray-800 dark:text-black" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" viewBox="0 0 24 24">
+            <path fillRule="evenodd" d="M13 11.15V4a1 1 0 1 0-2 0v7.15L8.78 8.374a1 1 0 1 0-1.56 1.25l4 5a1 1 0 0 0 1.56 0l4-5a1 1 0 1 0-1.56-1.25L13 11.15Z" clipRule="evenodd"/>
+            <path fillRule="evenodd" d="M9.657 15.874 7.358 13H5a2 2 0 0 0-2 2v4a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-4a2 2 0 0 0-2-2h-2.358l-2.3 2.874a3 3 0 0 1-4.685 0ZM17 16a1 1 0 1 0 0 2h.01a1 1 0 1 0 0-2H17Z" clipRule="evenodd"/>
+        </svg>
+    </button>
                     </li>
                 </ul>
             </section>
