@@ -11,7 +11,17 @@ export default function Main() {
     const [canvas, setCanvas] = useState(null);
     const [showShapeOptions, setShowShapeOptions] = useState(false);
     const [showAdjust, setShowAdjust] = useState(false);
-    const [fImage, setFImage] = useState(null);
+    const [activeObject, setActiveObject] = useState(null);
+    const [filters, setFilters] = useState({
+        brightness: 0,
+        contrast: 0,
+        saturation: 0,
+        grayscale: false,
+        sepia: false,
+        blur: 0,
+        sharpen: 0,
+    });
+
 
     useEffect(() => {
         if (canvasRef.current) {
@@ -20,7 +30,9 @@ export default function Main() {
                 height: 600
             });
             setCanvas(fabricCanvas);
-
+            fabricCanvas.on('selection:created', (e) => setActiveObject(e.target));
+            fabricCanvas.on('selection:updated', (e) => setActiveObject(e.target));
+            fabricCanvas.on('selection:cleared', () => setActiveObject(null));
             return () => {
                 fabricCanvas.dispose();
             };
@@ -29,19 +41,76 @@ export default function Main() {
 
     useEffect(() => {
         if (canvas && imageUrl) {
-           FabricImage.fromURL(imageUrl, (img) => {
-                canvas.setBackgroundImage(img, canvas.renderAll.bind(canvas), { crossOrigin: 'anonymous' });
-            });
+            fabric.Image.fromURL(imageUrl, (img) => {
+            
+                const canvasAspectRatio = canvas.width / canvas.height;
+                const imgAspectRatio = img.width / img.height;
+
+                if (imgAspectRatio > canvasAspectRatio) {
+                    img.scaleToWidth(canvas.width);
+                } else {
+                    img.scaleToHeight(canvas.height);
+                }
+
+             
+             
+                canvas.add(img);
+                canvas.renderAll();
+
+            
+                applyFilters(img);
+            }, { crossOrigin: 'anonymous' });
         }
     }, [canvas, imageUrl]);
 
     useEffect(() => {
-        const imageElement = document.createElement('img');
-        const imgInstance = new FabricImage(imageElement);
-        imgInstance.scale(1);
-        imgInstance.set({ top: 15, left: 15 });
-        setFImage(imgInstance);
-    }, []);
+        applyFiltersToAllImages();
+    }, [filters]);
+
+    const applyFiltersToAllImages = () => {
+        if (!canvas) return;
+
+        canvas.getObjects('image').forEach(obj => {
+            applyFilters(obj);
+        });
+
+        canvas.renderAll();
+    };
+    const applyFilters = () => {
+        if (!activeObject) return;
+
+        activeObject.filters = [];
+
+        if (filters.brightness !== 0) {
+            activeObject.filters.push(new fabric.Image.filters.Brightness({ brightness: filters.brightness }));
+        }
+        if (filters.contrast !== 0) {
+            activeObject.filters.push(new fabric.Image.filters.Contrast({ contrast: filters.contrast }));
+        }
+        if (filters.saturation !== 0) {
+            activeObject.filters.push(new fabric.Image.filters.Saturation({ saturation: filters.saturation }));
+        }
+        if (filters.grayscale) {
+            activeObject.filters.push(new fabric.Image.filters.Grayscale());
+        }
+        if (filters.sepia) {
+            activeObject.filters.push(new fabric.Image.filters.Sepia());
+        }
+        if (filters.blur !== 0) {
+            activeObject.filters.push(new fabric.Image.filters.Blur({ blur: filters.blur }));
+        }
+        if (filters.sharpen !== 0) {
+            activeObject.filters.push(new fabric.Image.filters.Convolute({
+                matrix: [0, -1, 0, -1, 5, -1, 0, -1, 0].map(v => v * filters.sharpen)
+            }));
+        }
+
+        activeObject.applyFilters();
+        canvas.renderAll();
+    };
+    const handleFilterChange = (filterName, value) => {
+        setFilters(prevFilters => ({ ...prevFilters, [filterName]: value }));
+    };
 
     const addText = () => {
         if (canvas) {
@@ -91,33 +160,8 @@ export default function Main() {
         canvas.add(circle);
     };
 
-    const adjustBrightness = (value) => {
-        if (canvas) {
-            canvas.getObjects().forEach((obj) => {
-                obj.filters.push(new FabricImage.filters.Brightness({ brightness: value }));
-                obj.applyFilters();
-            });
-            canvas.renderAll();
-        }
-    };
-
-    const applyBlendImage = () => {
-        if (canvas && fImage) {
-            const activeObject = canvas.getActiveObject();
-            if (activeObject) {
-                const blendFilter = new FabricImage.filters.BlendImage({
-                    image: fImage,
-                    mode: 'multiply' 
-                });
-                activeObject.filters.push(blendFilter);
-                activeObject.applyFilters();
-                canvas.renderAll();
-            } else {
-                alert('Vui lòng chọn một đối tượng để áp dụng bộ lọc trộn');
-            }
-        }
-    };
-
+ 
+      
     const toggleShapeOptions = () => {
         setShowShapeOptions(!showShapeOptions);
     };
@@ -133,29 +177,44 @@ export default function Main() {
         });
         canvas.add(line);
     };
-    const handleAddImage = (e) =>{
+    const handleAddImage = (e) => {
         if (!canvas) return;
         let imgObj = e.target.files[0];
         let reader = new FileReader();
         reader.readAsDataURL(imgObj);
-        reader.onload = (e) =>{
+        reader.onload = (e) => {
             let imageUrl = e.target.result
-            let imageElement = document.createElement('img');
+            let imageElement = document.createElement('img')
             imageElement.src = imageUrl
             imageElement.onload = function (){
-                let image = new FabricImage(imageElement)
-                canvas.add(image)
-                canvas.setActiveObject(image)
-                canvas.renderAll()
+                    let image = new fabric.Image(imageElement);
+                    canvas.add(image);
+                    canvas.centerObject(image);
+                    canvas.setActiveObject(image);
+                    applyFilters(image);
+                    canvas.renderAll();
             }
+           
         }
-}
+     
+    };
 const handleGr = () =>{
     const Obj = canvas.getObjects()
     const group = new fabric.Group(Obj)
     canvas.add(group);
     canvas.renderAll()
 }
+const handleUngroup = () => {
+    const activeObject = canvas.getActiveObject();
+    if (activeObject && activeObject.type === 'group') {
+      const items = activeObject.getObjects();
+      activeObject.destroy();
+      canvas.remove(activeObject);
+      canvas.add(...items);
+      canvas.renderAll();
+    }
+  };
+
     return (
         <div className="flex flex-row h-screen">
             <section className="flex flex-col select-none w-1/4 z-50 p-4 bg-gray-100 shadow-md">
@@ -177,15 +236,70 @@ const handleGr = () =>{
                         </button>
                         {showAdjust && (
                             <div className="flex flex-col">
-                                <input 
-                                    type="range" 
-                                    min="-1" 
-                                    max="1" 
-                                    step="0.1" 
-                                    onChange={(e) => adjustBrightness(parseFloat(e.target.value))}
+                            <label>Brightness</label>
+                            <input 
+                                type="range" 
+                                min="-1" 
+                                max="1" 
+                                step="0.1" 
+                                value={filters.brightness}
+                                onChange={(e) => handleFilterChange('brightness', parseFloat(e.target.value))}
+                            />
+                            <label>Contrast</label>
+                            <input 
+                                type="range" 
+                                min="-1" 
+                                max="1" 
+                                step="0.1" 
+                                value={filters.contrast}
+                                onChange={(e) => handleFilterChange('contrast', parseFloat(e.target.value))}
+                            />
+                            <label>Saturation</label>
+                            <input
+                                type="range"
+                                min="-1"
+                                max="1"
+                                step="0.1"
+                                value={filters.saturation}
+                                onChange={(e) => handleFilterChange('saturation', parseFloat(e.target.value))}
+                            />
+                            <label>Blur</label>
+                            <input
+                                type="range"
+                                min="0"
+                                max="1"
+                                step="0.1"
+                                value={filters.blur}
+                                onChange={(e) => handleFilterChange('blur', parseFloat(e.target.value))}
+                            />
+                            <label>Sharpen</label>
+                            <input
+                                type="range"
+                                min="0"
+                                max="1"
+                                step="0.1"
+                                value={filters.sharpen}
+                                onChange={(e) => handleFilterChange('sharpen', parseFloat(e.target.value))}
+                            />
+                            <div>
+                                <input
+                                    type="checkbox"
+                                    id="grayscale"
+                                    checked={filters.grayscale}
+                                    onChange={(e) => handleFilterChange('grayscale', e.target.checked)}
                                 />
-                                <button onClick={applyBlendImage}>Blend Image</button>
+                                <label htmlFor="grayscale">Grayscale</label>
                             </div>
+                            <div>
+                                <input
+                                    type="checkbox"
+                                    id="sepia"
+                                    checked={filters.sepia}
+                                    onChange={(e) => handleFilterChange('sepia', e.target.checked)}
+                                />
+                                <label htmlFor="sepia">Sepia</label>
+                                </div>
+                                </div>
                         )}
                     </li>
                     <li className="relative">
@@ -231,8 +345,11 @@ const handleGr = () =>{
                     <div>
                     <button onClick={handleGr}>Groups</button>
                     </div>
-                    <button onClick={handleGr}>UnGroups</button>
+                    <button onClick={handleUngroup}>UnGroups</button>
                   
+                    </li>
+                    <li>
+                    
                     </li>
                 </ul>
             </section>
